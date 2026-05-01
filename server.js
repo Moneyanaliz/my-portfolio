@@ -8,25 +8,40 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
 
+// Статические файлы
+app.use(express.static(path.join(__dirname)));
+
+// Главная страница
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Хранилище
 const dataDir = path.join(__dirname, 'data');
 const dbFile = path.join(dataDir, 'messages.json');
 
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 if (!fs.existsSync(dbFile)) fs.writeFileSync(dbFile, JSON.stringify({ messages: [] }));
 
 function readDB() {
-  return JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
+  try {
+    return JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
+  } catch (e) {
+    return { messages: [] };
+  }
 }
+
 function writeDB(data) {
   fs.writeFileSync(dbFile, JSON.stringify(data, null, 2));
 }
 
+// POST /api/contact
 app.post('/api/contact', (req, res) => {
-  const { name, topic, message } = req.body;
-  if (!message || message.trim().length < 5)
+  const { name, topic, message } = req.body || {};
+  if (!message || message.trim().length < 5) {
     return res.status(400).json({ ok: false, errors: ['Too short'] });
+  }
   try {
     const db = readDB();
     const newMsg = {
@@ -46,11 +61,12 @@ app.post('/api/contact', (req, res) => {
   }
 });
 
+// GET /api/messages
 app.get('/api/messages', (req, res) => {
   const db = readDB();
   res.json({ ok: true, messages: [...db.messages].reverse() });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('Server running on port ' + PORT);
 });
