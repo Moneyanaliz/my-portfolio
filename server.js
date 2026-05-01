@@ -3,6 +3,18 @@ const Database = require('better-sqlite3');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
+
+// Настройка почты — заполни в переменных окружения Railway:
+// GMAIL_USER=danilcodespace@gmail.com
+// GMAIL_PASS=твой_app_password (не обычный пароль!)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
 
 const app = express();
 const PORT = 3000;
@@ -61,6 +73,16 @@ app.post('/api/contact', (req, res) => {
       message.trim()
     );
     res.json({ ok: true, id: result.lastInsertRowid });
+
+    // Отправка на почту
+    if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
+      transporter.sendMail({
+        from: process.env.GMAIL_USER,
+        to: 'danilcodespace@gmail.com',
+        subject: `Новое сообщение с сайта: ${topic || 'Другое'}`,
+        text: `От: ${(name || 'Аноним').trim()}\n\n${message.trim()}`,
+      }).catch(err => console.error('Mail error:', err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, errors: ['Ошибка сервера'] });
